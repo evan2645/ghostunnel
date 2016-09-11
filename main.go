@@ -63,9 +63,10 @@ var (
 	clientCommand       = app.Command("client", "Client mode (plain TCP/UNIX listener -> TLS target).")
 	clientListenAddress = clientCommand.Flag("listen", "Address and port to listen on (HOST:PORT, or unix:PATH).").PlaceHolder("ADDR").Required().String()
 	// Note: can't use .TCP() for clientForwardAddress because we need to set the original string in tls.Config.ServerName.
-	clientForwardAddress = clientCommand.Flag("target", "Address to forward connections to (HOST:PORT).").PlaceHolder("ADDR").Required().String()
+	clientForwardAddress = clientCommand.Flag("target", "Address to forward connections to (HOST:PORT).").PlaceHolder("ADDR").String()
 	clientUnsafeListen   = clientCommand.Flag("unsafe-listen", "If set, does not limit listen to localhost, 127.0.0.1, [::1], or UNIX sockets.").Bool()
 	clientServerName     = clientCommand.Flag("override-server-name", "If set, overrides the server name used for hostname verification.").PlaceHolder("NAME").String()
+	clientSocksProxy     = clientCommand.Flag("socks", "If set, expose a SOCKS server in lieu of a static target").Bool()
 	clientSubCommand     = clientCommand.Arg("sub-command", "Child command to wrap (optional). Spawns as child on startup, terminates if child exists.").Strings()
 
 	keystorePath    = app.Flag("keystore", "Path to certificate and keystore (PKCS12).").PlaceHolder("PATH").Required().String()
@@ -161,6 +162,9 @@ func serverValidateFlags() error {
 func clientValidateFlags() error {
 	if !*clientUnsafeListen && !validateUnixOrLocalhost(*clientListenAddress) {
 		return fmt.Errorf("--listen must be unix:PATH, localhost:PORT, 127.0.0.1:PORT or [::1]:PORT (unless --unsafe-listen is set)")
+	}
+	if *clientForwardAddress == "" && !*clientSocksProxy {
+		return fmt.Errorf("--target is required when not using --socks")
 	}
 	return nil
 }

@@ -76,16 +76,31 @@ func (p *proxy) accept() {
 				return
 			}
 
-			backend, err := p.dial()
-			if err != nil {
-				logger.Printf("%s", err)
-				return
-			}
+			// Pass the connection to the SOCKS proxy if set
+			if *clientSocksProxy {
+				successCounter.Inc(1)
+				p.handlers.Add(1)
+				defer p.handlers.Done()
 
-			successCounter.Inc(1)
-			p.handlers.Add(1)
-			defer p.handlers.Done()
-			fuse(conn, backend)
+				go func() {
+					err := serveSocksConn(conn)
+					if err != nil {
+						logger.Printf("%s", err)
+						return
+					}
+				}()
+			} else {
+				backend, err := p.dial()
+				if err != nil {
+					logger.Printf("%s", err)
+					return
+				}
+
+				successCounter.Inc(1)
+				p.handlers.Add(1)
+				defer p.handlers.Done()
+				fuse(conn, backend)
+			}
 		})
 	}
 }
